@@ -43,7 +43,7 @@ public class CAES {
 		    return encryptedValue;
 		  }
 		  
-		  public static String decrypt(String AESkey, String AESIV, Boolean baseEncode, String AESMode, String ciphertext)
+		  public static String decrypt(String AESkey, String AESIV, Boolean baseEncode, String AESMode, String cipherText)
 		    throws Exception
 		  {
 		    byte[] keyValue = AESkey.getBytes();
@@ -59,9 +59,9 @@ public class CAES {
 		    } else {
 		      cipher.init(2, skeySpec);
 		    }
-		    byte[] cipherbytes = ciphertext.getBytes();
+		    byte[] cipherbytes = cipherText.getBytes();
 		    if (baseEncode) {
-		      cipherbytes = (new BASE64Decoder()).decodeBuffer(ciphertext);
+		      cipherbytes = (new BASE64Decoder()).decodeBuffer(cipherText);
 		    }
 		    byte[] original = cipher.doFinal(cipherbytes);
 		    return new String(original);
@@ -73,7 +73,7 @@ public class CAES {
 			String AESkey = "@tony@2015ZEALER";
 			//String AESIV = "abcdef1234567890abcdef1234567890";
 			String AESIV = "0123456789ABCDEF";
-			boolean BaseEncode = true;
+			boolean BaseEncode = false;
 			String AESMode = "AES/CBC/PKCS5Padding";
 			String Plaintext = "<11pscriptalert(1)11";
 			String ciphertext = "kIYpLr53uZfEgkxX8rbovQ==";

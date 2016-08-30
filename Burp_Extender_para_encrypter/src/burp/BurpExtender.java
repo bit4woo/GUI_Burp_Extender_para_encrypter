@@ -3,78 +3,76 @@ package burp;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.ComponentOrientation;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
+import java.security.DomainCombiner;
 
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.EtchedBorder;
+import javax.swing.table.DefaultTableModel;
+
+import com.alibaba.fastjson.util.Base64;
+
 import java.awt.GridBagLayout;
-import java.awt.Component;
+import java.awt.GridLayout;
 import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-import com.sun.glass.ui.TouchInputSupport;
-
 import burp.CAESOperator_AES_128; //AES加解密算法的实现类
 import burp.CUnicode; //unicode解码的实现类
 import burp.IParameter;
-import sun.awt.resources.awt;
+import net.miginfocom.swing.MigLayout;
+import sun.misc.BASE64Decoder;
+import sun.misc.BASE64Encoder;
 
 
-public class BurpExtender implements IBurpExtender, IHttpListener,ITab
+public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextMenuFactory
 {
     private IBurpExtenderCallbacks callbacks;
     private IExtensionHelpers helpers;
     private PrintWriter stdout;//现在这里定义变量，再在registerExtenderCallbacks函数中实例化，如果都在函数中就只是局部变量，不能在这实例化，因为要用到其他参数。
-    private JPanel panel;
-    public final String TAB_NAME = "AES Config";
-    
-    private JCheckBox forScanner,forIntruder,forRepeater,forProxy;
-    private JCheckBox decrpytResponse,showClearText;
-    
-    private JLabel hexFormat;
-    private JLabel stringFormat;
-    private JTextField hexString;
-    private JTextField textString;
-    private JButton hexButton;
-    
-    private JTextField parameterAESkey;
-    private JTextField parameterAESIV;
-    private JLabel lblDescription;
-    private JComboBox comboAESMode;
-    private JLabel lbl3;
-    private JCheckBox chckbxNewCheckBox;
-    private JCheckBox chckbxBaseEncode;
-    private JPanel panel_1;
-    private JPanel panel_0;
 
-
-    private JButton btnNewButton;
-    private JTextArea textAreaPlaintext;
-    private JTextArea textAreaCiphertext;
-    private JButton btnNewButton_1;
-    private JLabel lblPlaintext;
-    private JLabel lblCiphertext;
-    //public IntruderPayloadProcessor payloadEncryptor;
-    //public IntruderPayloadProcessor payloadDecryptor;
+	private JPanel contentPane;
+	private JTextField textFieldDomain;
+	private JTable table;
+	private JTextField addhere;
+	private JTextField txtAESKey;
+	private JTextField txtIVString;
+	private JCheckBox chckbxProxy;
+	private JCheckBox chckbxScanner;
+	private JCheckBox chckbxIntruder;
+	private JCheckBox chckbxRepeater;
+	private JCheckBox decryptResponse;
+	private JCheckBox chckbxShowDecryptedOnly;
+	private JTextArea textPlain;
+	private JTextArea textChiper;
+	private JCheckBox checkBoxBase64;
+	private JComboBox comboBoxAESMode;
+	private JTabbedPane tabbedPane_Center;
     
     private String AESkey; //these parameters are get from GUI use to encrypt or decrypt
     private String AESIV;
@@ -91,20 +89,21 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab
     {
     	stdout = new PrintWriter(callbacks.getStdout(), true);
     	//PrintWriter stdout = new PrintWriter(callbacks.getStdout(), true); 这种写法是定义变量和实例化，这里的变量就是新的变量而不是之前class中的全局变量了。
-    	stdout.println("Para Encrypter v1.0 by bit4");
+    	stdout.println("Para Encrypter v1.1 by bit4");
     	//System.out.println("test"); 不会输出到burp的
         this.callbacks = callbacks;
         helpers = callbacks.getHelpers();
-        callbacks.setExtensionName("Para Encrypter v1.0 by bit4"); //插件名称
+        callbacks.setExtensionName("Para Encrypter v1.1 by bit4"); //插件名称
         callbacks.registerHttpListener(this); //如果没有注册，下面的processHttpMessage方法是不会生效的。处理请求和响应包的插件，这个应该是必要的
+        callbacks.registerContextMenuFactory(this);
         addMenuTab();
     }
 
     @Override
     public void processHttpMessage(int toolFlag,boolean messageIsRequest,IHttpRequestResponse messageInfo)
     {
-		List<String> paraWhiteList = new ArrayList<String>(); //参数白名单，白名单中的参数值不进行加密计算
-		paraWhiteList.add("android");
+		List<String> paraWhiteList = new ArrayList<String>(); //参数白名单，白名单中的参数值才进行加密计算
+		paraWhiteList = getParaFromTable();
 		
 		
     	if (toolFlag == (toolFlag&checkEnabledFor())){ //不同的toolflag代表了不同的burp组件 https://portswigger.net/burp/extender/api/constant-values.html#burp.IBurpExtenderCallbacks
@@ -124,7 +123,6 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab
                 List<IParameter> paraList = analyzeRequest.getParameters();//当body是json格式的时候，这个方法也可以正常获取到键值对，牛掰。但是PARAM_JSON等格式不能通过updateParameter方法来更新。
                 //如果在url中的参数的值是 xxx=json格式的字符串 这种形式的时候，getParameters应该是无法获取到最底层的键值对的。
                 //获取各种参数和消息体部分的集合 
-                getPara();//获取配置面板上的各项值。
                 
                 //判断一个请求是否是文件上传的请求。
     			boolean isFileUploadRequest =false;
@@ -135,31 +133,43 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab
     				}
     			}
     			
-    			if (isFileUploadRequest == false){ //对文件上传的请求，对其中的参数不做加密处理
+    			if (isFileUploadRequest == false && getHost(analyzeRequest).endsWith(getHostFromUI())){ //对文件上传的请求，对其中的参数不做加密处理 ;并进行域名的判断，只对指定的域名及其子域名进行处理
 	    			byte[] new_Request = messageInfo.getRequest();
 	    			for (IParameter para : paraList){// 循环获取参数，判断类型，进行加密处理后，再构造新的参数，合并到新的请求包中。
-	    				if ((para.getType() == 0 || para.getType() == 1) && !paraWhiteList.contains(para.getName())){ 
+	    				if (paraWhiteList.contains(para.getName())){ 
 	    					//getTpe()就是来判断参数是在那个位置的，cookie中的参数是不需要进行加密处理的。还要排除白名单中的参数。
 		    				//这里要注意的是，参数的类型共6种，如果body中的参数是json或者xml格式，需要单独判断。
 	    					String key = para.getName(); //获取参数的名称
 		    				String value = para.getValue(); //获取参数的值
 		    				//stdout.println(key+":"+value);
 		    				
-		    				String aesvalue;
+		    				
 		    				try {
-								aesvalue = CAES.encrypt(AESkey,AESIV,BaseEncode,AESMode,Plaintext);
-								aesvalue = URLEncoder.encode(aesvalue); //还要进行URL编码，否则会出现= 等特殊字符导致参数判断异常
-			    				stdout.println(key+":"+value+":"+aesvalue); //输出到extender的UI窗口，可以让使用者有一些判断
+		    					
+		    					int tabIndex = tabbedPane_Center.getSelectedIndex();
+		    					String txtPlain = value;
+		    					String encryptedValue = "";
+		    					if (tabIndex == 0){
+		    						encryptedValue = AESEncrypt(txtPlain);
+		    					}else if (tabIndex == 1) {
+		    						encryptedValue = Base64Encrypt(txtPlain);
+		    					}else if (tabIndex == 2) {
+		    						encryptedValue = RSAEncrypt(txtPlain);
+		    					}else if (tabIndex == 3 ){
+		    						encryptedValue =DESEncrypt(txtPlain);
+		    					}
+
+		    					encryptedValue = URLEncoder.encode(encryptedValue); //还要进行URL编码，否则会出现= 等特殊字符导致参数判断异常
+			    				stdout.println(key+":"+value+":"+encryptedValue); //输出到extender的UI窗口，可以让使用者有一些判断
 			    				//更新包的方法集合
 			    				//更新参数
-			    				IParameter newPara = helpers.buildParameter(key, aesvalue, para.getType()); //构造新的参数,如果参数是PARAM_JSON类型，这个方法是不适用的
-			    				//IParameter newPara = helpers.buildParameter(key, aesvalue, PARAM_BODY); //要使用这个PARAM_BODY 是不是需要先实例化IParameter类。
+			    				IParameter newPara = helpers.buildParameter(key, encryptedValue, para.getType()); //构造新的参数,如果参数是PARAM_JSON类型，这个方法是不适用的
+			    				//IParameter newPara = helpers.buildParameter(key, encryptedValue, PARAM_BODY); //要使用这个PARAM_BODY 是不是需要先实例化IParameter类。
 			    				new_Request = helpers.updateParameter(new_Request, newPara); //构造新的请求包
 			    				// new_Request = helpers.buildHttpMessage(headers, byte_body); //如果修改了header或者数修改了body，而不是通过updateParameter，使用这个方法。
 							} catch (Exception e) {
-								// TODO Auto-generated catch block
 								e.printStackTrace();
-							} //对value值进行加密
+							}
 		    				
 	    				}
 	    			}
@@ -173,378 +183,399 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab
     		}
     		
     		else{
-    			if(this.decrpytResponse.isSelected()){
+    			if(this.decryptResponse.isSelected()){
 	    			//处理返回，响应包
 	    			IResponseInfo analyzedResponse = helpers.analyzeResponse(messageInfo.getResponse()); //getResponse获得的是字节序列
 	    			List<String> header = analyzedResponse.getHeaders();
-	    			short statusCode = analyzedResponse.getStatusCode();
+	    			//short statusCode = analyzedResponse.getStatusCode();
 	    			int bodyOffset = analyzedResponse.getBodyOffset();
-	    			if (statusCode==200){
-	    				try{
-		    				CAESOperator_AES_128 aes = new CAESOperator_AES_128();
-		    				String resp = new String(messageInfo.getResponse());
-		                    String body = resp.substring(bodyOffset);
-		                    String deBody= CAES.decrypt(AESkey,AESIV,BaseEncode,AESMode,body);
-		                    deBody = deBody.replace("\"", "\\\"");
-		                    String UnicodeBody = (new CUnicode()).unicodeDecode(deBody);
-		                    String newBody;
-		                    if(showClearText.isSelected()){
-		                    	 newBody = UnicodeBody;
-		                    }
-		                    else {
-		                    	 newBody = body +"\r\n" +UnicodeBody; //将新的解密后的body附到旧的body后面
-							}
-		                    byte[] bodybyte = newBody.getBytes();
-		                    //更新包的方法二buildHttpMessage
-		                    messageInfo.setResponse(helpers.buildHttpMessage(header, bodybyte));
-	    				}catch(Exception e){
-	    					stdout.println(e);
-	    				}
-	    			}
+	    			String resp = new String(messageInfo.getResponse());
+                    String body = resp.substring(bodyOffset);
+    				try{
+    					
+    					int tabIndex = tabbedPane_Center.getSelectedIndex();
+    					String txtPlain = "";
+    					String txtCipher = body;
+    					if (tabIndex == 0){
+    						txtPlain = AESDecrypt(txtCipher);
+    					}else if (tabIndex == 1) {
+    						txtPlain = Base64Decrypt(txtCipher);
+    					}else if (tabIndex == 2) {
+    						txtPlain = RSADecrypt(txtCipher);
+    					}else if (tabIndex == 3 ){
+    						txtPlain = DESDecrypt(txtCipher);
+    					}
+    					
+    					txtPlain = txtPlain.replace("\"", "\\\"");
+	                    String UnicodeBody = (new CUnicode()).unicodeDecode(txtPlain);
+	                    String newBody;
+	                    if(chckbxShowDecryptedOnly.isSelected()){
+	                    	 newBody = UnicodeBody;
+	                    }
+	                    else {
+	                    	 newBody = body +"\r\n" +UnicodeBody; //将新的解密后的body附到旧的body后面
+						}
+	                    byte[] bodybyte = newBody.getBytes();
+	                    //更新包的方法二buildHttpMessage
+	                    messageInfo.setResponse(helpers.buildHttpMessage(header, bodybyte));
+    				}catch(Exception e){
+    					stdout.println(e);
+    				}
+
     			}
     			
     		}	    		
     	}
-    		
     }
     
-    
-    
-    public void buildUI(){
-       // Create configuration Panel
-    	this.panel = new JPanel();
-        GridBagLayout gbl_panel = new GridBagLayout();
-        gbl_panel.columnWidths = new int[] { 139, 400, 0 };
-        gbl_panel.rowHeights = new int[] { 0, 0, 0, 0, 0, 0, 0, 0 }; //  此字段保持对行最小高度的重写。
-        gbl_panel.columnWeights = new double[] { 1.0D, 1.0D, Double.MIN_VALUE }; //     此字段保持对列最小宽度的重写
-        gbl_panel.rowWeights = new double[] { 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, Double.MIN_VALUE }; //     此字段保持对行权重的重写。
-        this.panel.setLayout(gbl_panel);
-        
-        this.lblDescription = new JLabel("<html><b>Para Encrypter v1.0 by bit4</b><br>https://github.com/bit4woo.<br></html>");
-        this.lblDescription.setHorizontalAlignment(2);
-        this.lblDescription.setVerticalAlignment(1);
-        GridBagConstraints gbc_lblDescription = new GridBagConstraints();
-        gbc_lblDescription.fill = 2; //填充方式
-        gbc_lblDescription.insets = new Insets(0, 0, 5, 0); //设置间隔
-        gbc_lblDescription.gridx = 0; //当把gridx值设置为GridBagConstriants.RELETIVE时，所添加的组件将被放置在前一个组件的右侧
-        gbc_lblDescription.gridy = 0; //同理，对gridy 值设置为GridBagConstraints.RELETIVE时，所添加的组件将被放置在前一个组件的下方
-        this.panel.add(this.lblDescription, gbc_lblDescription);
-        
-        this.forScanner = new JCheckBox("Enable For Scanner");
-        this.forScanner.setSelected(true);
-        this.forIntruder = new JCheckBox("Enable For Intruder");
-        this.forIntruder.setSelected(true);
-        this.forRepeater = new JCheckBox("Enable For Repeater");
-        this.forRepeater.setSelected(true);
-        this.forProxy = new JCheckBox("Enable For Proxy");
-        this.forProxy.setSelected(true);
-        
-        this.decrpytResponse = new JCheckBox("Decrypt Response");
-        this.decrpytResponse.setSelected(true);
-        this.showClearText = new JCheckBox("show decrypted clear content in response only");
-        this.showClearText.setSelected(false);
-        
-        this.panel.add(forScanner);
-        this.panel.add(forIntruder);
-        this.panel.add(forRepeater);
-        this.panel.add(forProxy);
-        this.panel.add(decrpytResponse);
-        this.panel.add(showClearText);
-        
-        
-        /////实现hex和string的转换
-        this.panel_0 = new JPanel();
-        GridBagConstraints gbc_panel_0 = new GridBagConstraints();
-        gbc_panel_0.gridwidth = 2;
-        gbc_panel_0.insets = new Insets(0, 0, 0, 5);
-        gbc_panel_0.fill = 1;
-        gbc_panel_0.gridx = 0;
-        gbc_panel_0.gridy = 1;
-        this.panel.add(this.panel_0, gbc_panel_0);
-        GridBagLayout gbl_panel_0 = new GridBagLayout();
-//        gbl_panel_0.columnWidths = new int[] { 0, 0, 0, 0 };
-//        gbl_panel_0.rowHeights = new int[] { 0, 0, 0, 0 };
-//        gbl_panel_0.columnWeights = new double[] { 1.0D, 0.0D, 1.0D, Double.MIN_VALUE };
-//        gbl_panel_0.rowWeights = new double[] { 0.0D, 0.0D, 1.0D, Double.MIN_VALUE };
-        this.panel_0.setLayout(gbl_panel_0);
-        
-        this.hexFormat = new JLabel("hexFormat");
-        this.hexFormat.setHorizontalAlignment(SwingConstants.LEFT);//对齐方式
-        GridBagConstraints gbc_hexFormat = new GridBagConstraints();
-        gbc_hexFormat.insets = new Insets(0, 0, 5, 5);
-        gbc_hexFormat.gridx = 0;
-        gbc_hexFormat.gridy = 0;
-        this.panel_0.add(this.hexFormat, gbc_hexFormat);
-        
-        
-        this.stringFormat = new JLabel("stringFormat");
-        this.stringFormat.setHorizontalAlignment(4);
-        GridBagConstraints gbc_stringFormat = new GridBagConstraints();
-        gbc_stringFormat.insets = new Insets(0, 0, 5, 0);
-        gbc_stringFormat.gridx = 2;
-        gbc_stringFormat.gridy = 0;
-        this.panel_0.add(this.stringFormat, gbc_stringFormat);
-        
-        this.hexString = new JTextField();
-        GridBagConstraints gbc_hexString = new GridBagConstraints();
-        gbc_hexString.gridheight = 2;
-        gbc_hexString.insets = new Insets(0, 0, 0, 5);
-        gbc_hexString.fill = 2;
-        gbc_hexString.gridx = 0;
-        gbc_hexString.gridy = 1;
-        this.panel_0.add(this.hexString, gbc_hexString);
-        this.hexString.setColumns(40);//成功控制了文本框的宽度
-        
-        this.hexButton = new JButton("->");
-        this.hexButton.addActionListener(new ActionListener()
-        {
-          public void actionPerformed(ActionEvent arg0)
-          {
-            try
-            {
-              getPara();
-              BurpExtender.this.textAreaCiphertext.setText(CHexString2String.hexStringToString(BurpExtender.this.hexString.getText()));
-            }
-            catch (Exception e)
-            {
-              BurpExtender.this.callbacks.issueAlert(e.toString());
-            }
-          }
-        });
-        GridBagConstraints gbc_hexButton = new GridBagConstraints();
-        gbc_hexButton.insets = new Insets(0, 0, 5, 5);
-        gbc_hexButton.gridx = 1;
-        gbc_hexButton.gridy = 1;
-        this.panel_0.add(this.hexButton, gbc_hexButton);
-        
-        this.textString = new JTextField();
-        GridBagConstraints gbc_textString = new GridBagConstraints();
-        gbc_textString.gridheight = 2;
-        gbc_textString.fill = 2;
-        gbc_textString.gridx = 2;
-        gbc_textString.gridy = 1;
-        this.panel_0.add(this.textString, gbc_textString);
-        this.textString.setColumns(40);
-        
-//        this.btnNewButton_1 = new JButton("<-");
-//        this.btnNewButton_1.addActionListener(new ActionListener()
-//        {
-//          public void actionPerformed(ActionEvent arg0)
-//          {
-//            try
-//            {
-//              getPara();
-//              BurpExtender.this.textAreaPlaintext.setText(CAES.decrypt(AESkey,AESIV,BaseEncode,AESMode,Chiphertext));
-//            }
-//            catch (Exception e)
-//            {
-//              BurpExtender.this.callbacks.issueAlert(e.toString());
-//            }
-//          }
-//        });
-//        this.btnNewButton_1.setVerticalAlignment(1);
-//        GridBagConstraints gbc_btnNewButton_1 = new GridBagConstraints();
-//        gbc_btnNewButton_1.anchor = 11;
-//        gbc_btnNewButton_1.insets = new Insets(0, 0, 0, 5);
-//        gbc_btnNewButton_1.gridx = 1;
-//        gbc_btnNewButton_1.gridy = 2;
-//        this.panel_0.add(this.btnNewButton_1, gbc_btnNewButton_1);
-        //////////实现hex 和string的转换
-        
-        
-        JLabel lbl1 = new JLabel("AES key String:");
-        lbl1.setHorizontalAlignment(4);
-        GridBagConstraints gbc_lbl1 = new GridBagConstraints();
-        gbc_lbl1.anchor = 13;
-        gbc_lbl1.insets = new Insets(0, 0, 5, 5);
-        gbc_lbl1.gridx = 0;
-        gbc_lbl1.gridy = 2;
-        this.panel.add(lbl1, gbc_lbl1);
-        
-        this.parameterAESkey = new JTextField();
-        this.parameterAESkey.setText("bit4@MZSEC.2016.");
-        GridBagConstraints gbc_parameterAESkey = new GridBagConstraints();
-        gbc_parameterAESkey.insets = new Insets(0, 0, 5, 0);
-        gbc_parameterAESkey.fill = 2;
-        gbc_parameterAESkey.gridx = 1;
-        gbc_parameterAESkey.gridy = 2;
-        this.panel.add(this.parameterAESkey, gbc_parameterAESkey);
-        this.parameterAESkey.setColumns(10);
-        
-        JLabel lbl2 = new JLabel("IV String:");
-        lbl2.setHorizontalAlignment(4);
-        GridBagConstraints gbc_lbl2 = new GridBagConstraints();
-        gbc_lbl2.insets = new Insets(0, 0, 5, 5);
-        gbc_lbl2.anchor = 13;
-        gbc_lbl2.gridx = 0;
-        gbc_lbl2.gridy = 3;
-        this.panel.add(lbl2, gbc_lbl2);
-        
-        this.parameterAESIV = new JTextField();
-        this.parameterAESIV.setText("0123456789ABCDEF");
-        this.parameterAESIV.setColumns(10);
-        GridBagConstraints gbc_parameterAESIV = new GridBagConstraints();
-        gbc_parameterAESIV.insets = new Insets(0, 0, 5, 0);
-        gbc_parameterAESIV.fill = 2;
-        gbc_parameterAESIV.gridx = 1;
-        gbc_parameterAESIV.gridy = 3;
-        this.panel.add(this.parameterAESIV, gbc_parameterAESIV);
-        
-//        this.chckbxNewCheckBox = new JCheckBox("IV block in Ciphertext (not yet working)");
-//        this.chckbxNewCheckBox.setEnabled(false);
-//        GridBagConstraints gbc_chckbxNewCheckBox = new GridBagConstraints();
-//        gbc_chckbxNewCheckBox.fill = 2;
-//        gbc_chckbxNewCheckBox.insets = new Insets(0, 0, 5, 0);
-//        gbc_chckbxNewCheckBox.gridx = 0;
-//        gbc_chckbxNewCheckBox.gridy = 4;
-//        this.panel.add(this.chckbxNewCheckBox, gbc_chckbxNewCheckBox);
-        
-        this.chckbxBaseEncode = new JCheckBox("Base 64 Decode/Encode");
-        this.chckbxBaseEncode.setSelected(true);
-        GridBagConstraints gbc_chckbxBaseEncode = new GridBagConstraints();
-        gbc_chckbxBaseEncode.fill = 2;
-        gbc_chckbxBaseEncode.insets = new Insets(0, 0, 5, 0);
-        gbc_chckbxBaseEncode.gridx = 1;
-        gbc_chckbxBaseEncode.gridy = 4;
-        this.panel.add(this.chckbxBaseEncode, gbc_chckbxBaseEncode);
-        
-        this.lbl3 = new JLabel("AES Mode:");
-        this.lbl3.setHorizontalAlignment(4);
-        GridBagConstraints gbc_lbl3 = new GridBagConstraints();
-        gbc_lbl3.insets = new Insets(0, 0, 5, 5);
-        gbc_lbl3.anchor = 13;
-        gbc_lbl3.gridx = 0;
-        gbc_lbl3.gridy = 5;
-        this.panel.add(this.lbl3, gbc_lbl3);
-        
-        this.comboAESMode = new JComboBox();//下拉菜单
-        this.comboAESMode.addPropertyChangeListener(new PropertyChangeListener()
-        {
-          public void propertyChange(PropertyChangeEvent arg0)
-          {
-            String cmode = (String)BurpExtender.this.comboAESMode.getSelectedItem();
-            if (cmode.contains("CBC")) {
-              BurpExtender.this.parameterAESIV.setEditable(true);
-            } else {
-              BurpExtender.this.parameterAESIV.setEditable(false);
-            }
-          }
-        });
-        this.comboAESMode.setModel(new DefaultComboBoxModel(new String[] { "AES/CBC/NoPadding", "AES/CBC/PKCS5Padding", "AES/ECB/NoPadding", "AES/ECB/PKCS5Padding" }));
-        this.comboAESMode.setSelectedIndex(1);
-        GridBagConstraints gbc_comboAESMode = new GridBagConstraints();
-        gbc_comboAESMode.insets = new Insets(0, 0, 5, 0);
-        gbc_comboAESMode.fill = 2;
-        gbc_comboAESMode.gridx = 1;
-        gbc_comboAESMode.gridy = 5;
-        this.panel.add(this.comboAESMode, gbc_comboAESMode);
-        
-        ///文本区域的一个单独panel
-        this.panel_1 = new JPanel();
-        GridBagConstraints gbc_panel_1 = new GridBagConstraints();
-        gbc_panel_1.gridwidth = 3;
-        gbc_panel_1.insets = new Insets(0, 0, 0, 5);
-        gbc_panel_1.fill = 1;
-        gbc_panel_1.gridx = 0;
-        gbc_panel_1.gridy = 6;
-        this.panel.add(this.panel_1, gbc_panel_1);
-        GridBagLayout gbl_panel_1 = new GridBagLayout();
-        gbl_panel_1.columnWidths = new int[] { 0, 0, 0, 0 };
-        gbl_panel_1.rowHeights = new int[] { 0, 0, 0, 0 };
-        gbl_panel_1.columnWeights = new double[] { 1.0D, 0.0D, 1.0D, Double.MIN_VALUE };
-        gbl_panel_1.rowWeights = new double[] { 0.0D, 0.0D, 1.0D, Double.MIN_VALUE };
-        this.panel_1.setLayout(gbl_panel_1);
-        
-        this.lblPlaintext = new JLabel("Plaintext");
-        this.lblPlaintext.setHorizontalAlignment(4);
-        GridBagConstraints gbc_lblPlaintext = new GridBagConstraints();
-        gbc_lblPlaintext.insets = new Insets(0, 0, 5, 5);
-        gbc_lblPlaintext.gridx = 0;
-        gbc_lblPlaintext.gridy = 0;
-        this.panel_1.add(this.lblPlaintext, gbc_lblPlaintext);
-        
-        this.lblCiphertext = new JLabel("Ciphertext");
-        this.lblCiphertext.setHorizontalAlignment(4);
-        GridBagConstraints gbc_lblCiphertext = new GridBagConstraints();
-        gbc_lblCiphertext.insets = new Insets(0, 0, 5, 0);
-        gbc_lblCiphertext.gridx = 2;
-        gbc_lblCiphertext.gridy = 0;
-        this.panel_1.add(this.lblCiphertext, gbc_lblCiphertext);
-        
-        this.textAreaPlaintext = new JTextArea();
-        this.textAreaPlaintext.setLineWrap(true);
-        GridBagConstraints gbc_textAreaPlaintext = new GridBagConstraints();
-        gbc_textAreaPlaintext.gridheight = 2;
-        gbc_textAreaPlaintext.insets = new Insets(0, 0, 0, 5);
-        gbc_textAreaPlaintext.fill = 1;
-        gbc_textAreaPlaintext.gridx = 0;
-        gbc_textAreaPlaintext.gridy = 1;
-        this.panel_1.add(this.textAreaPlaintext, gbc_textAreaPlaintext);
-        
-        this.btnNewButton = new JButton("Encrypt ->");
-        this.btnNewButton.addActionListener(new ActionListener()
-        {
-          public void actionPerformed(ActionEvent arg0)
-          {
-            try
-            {
-              getPara();
-              BurpExtender.this.textAreaCiphertext.setText(CAES.encrypt(AESkey,AESIV,BaseEncode,AESMode,Plaintext));
-            }
-            catch (Exception e)
-            {
-              BurpExtender.this.callbacks.issueAlert(e.toString());
-            }
-          }
-        });
-        GridBagConstraints gbc_btnNewButton = new GridBagConstraints();
-        gbc_btnNewButton.insets = new Insets(0, 0, 5, 5);
-        gbc_btnNewButton.gridx = 1;
-        gbc_btnNewButton.gridy = 1;
-        this.panel_1.add(this.btnNewButton, gbc_btnNewButton);
-        
-        this.textAreaCiphertext = new JTextArea();
-        this.textAreaCiphertext.setLineWrap(true);
-        GridBagConstraints gbc_textAreaCiphertext = new GridBagConstraints();
-        gbc_textAreaCiphertext.gridheight = 2;
-        gbc_textAreaCiphertext.fill = 1;
-        gbc_textAreaCiphertext.gridx = 2;
-        gbc_textAreaCiphertext.gridy = 1;
-        this.panel_1.add(this.textAreaCiphertext, gbc_textAreaCiphertext);
-        
-        this.btnNewButton_1 = new JButton("<- Decrypt");
-        this.btnNewButton_1.addActionListener(new ActionListener()
-        {
-          public void actionPerformed(ActionEvent arg0)
-          {
-            try
-            {
-              getPara();
-              BurpExtender.this.textAreaPlaintext.setText(CAES.decrypt(AESkey,AESIV,BaseEncode,AESMode,Chiphertext));
-            }
-            catch (Exception e)
-            {
-              BurpExtender.this.callbacks.issueAlert(e.toString());
-            }
-          }
-        });
-        this.btnNewButton_1.setVerticalAlignment(1);
-        GridBagConstraints gbc_btnNewButton_1 = new GridBagConstraints();
-        gbc_btnNewButton_1.anchor = 11;
-        gbc_btnNewButton_1.insets = new Insets(0, 0, 0, 5);
-        gbc_btnNewButton_1.gridx = 1;
-        gbc_btnNewButton_1.gridy = 2;
-        this.panel_1.add(this.btnNewButton_1, gbc_btnNewButton_1);
-    }
-    //文本框部分
+    public void UI() {
 
+		contentPane = new JPanel();
+		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+		contentPane.setLayout(new BorderLayout(5, 5));
+		
+		JPanel panel_North = new JPanel();
+		contentPane.add(panel_North, BorderLayout.NORTH);
+		panel_North.setLayout(new GridLayout(0, 1, 0, 0));
+		
+		JPanel panel_3 = new JPanel();
+		panel_3.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+		panel_North.add(panel_3);
+		GridBagLayout gbl_panel_3 = new GridBagLayout();
+		gbl_panel_3.columnWidths = new int[]{161, 161, 161, 161, 161, 0};
+		gbl_panel_3.rowHeights = new int[]{23, 23, 0};
+		gbl_panel_3.columnWeights = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, Double.MIN_VALUE};
+		gbl_panel_3.rowWeights = new double[]{0.0, 0.0, Double.MIN_VALUE};
+		panel_3.setLayout(gbl_panel_3);
+		
+		JLabel enableFor = new JLabel("Enable For :");
+		GridBagConstraints gbc_enableFor = new GridBagConstraints();
+		gbc_enableFor.fill = GridBagConstraints.BOTH;
+		gbc_enableFor.insets = new Insets(0, 0, 5, 5);
+		gbc_enableFor.gridx = 0;
+		gbc_enableFor.gridy = 0;
+		panel_3.add(enableFor, gbc_enableFor);
+		
+		chckbxProxy = new JCheckBox("Proxy");
+		GridBagConstraints gbc_chckbxProxy = new GridBagConstraints();
+		gbc_chckbxProxy.fill = GridBagConstraints.BOTH;
+		gbc_chckbxProxy.insets = new Insets(0, 0, 5, 5);
+		gbc_chckbxProxy.gridx = 1;
+		gbc_chckbxProxy.gridy = 0;
+		panel_3.add(chckbxProxy, gbc_chckbxProxy);
+		
+		chckbxScanner = new JCheckBox("Scanner");
+		GridBagConstraints gbc_chckbxScanner = new GridBagConstraints();
+		gbc_chckbxScanner.fill = GridBagConstraints.BOTH;
+		gbc_chckbxScanner.insets = new Insets(0, 0, 5, 5);
+		gbc_chckbxScanner.gridx = 2;
+		gbc_chckbxScanner.gridy = 0;
+		panel_3.add(chckbxScanner, gbc_chckbxScanner);
+		
+		chckbxIntruder = new JCheckBox("Intruder");
+		GridBagConstraints gbc_chckbxIntruder = new GridBagConstraints();
+		gbc_chckbxIntruder.fill = GridBagConstraints.BOTH;
+		gbc_chckbxIntruder.insets = new Insets(0, 0, 5, 5);
+		gbc_chckbxIntruder.gridx = 3;
+		gbc_chckbxIntruder.gridy = 0;
+		panel_3.add(chckbxIntruder, gbc_chckbxIntruder);
+		
+		chckbxRepeater = new JCheckBox("Repeater");
+		chckbxRepeater.setSelected(true);
+		GridBagConstraints gbc_chckbxRepeater = new GridBagConstraints();
+		gbc_chckbxRepeater.fill = GridBagConstraints.BOTH;
+		gbc_chckbxRepeater.insets = new Insets(0, 0, 5, 0);
+		gbc_chckbxRepeater.gridx = 4;
+		gbc_chckbxRepeater.gridy = 0;
+		panel_3.add(chckbxRepeater, gbc_chckbxRepeater);
+		
+		JLabel dealResponse = new JLabel("About Response :");
+		GridBagConstraints gbc_dealResponse = new GridBagConstraints();
+		gbc_dealResponse.fill = GridBagConstraints.BOTH;
+		gbc_dealResponse.insets = new Insets(0, 0, 0, 5);
+		gbc_dealResponse.gridx = 0;
+		gbc_dealResponse.gridy = 1;
+		panel_3.add(dealResponse, gbc_dealResponse);
+		
+		decryptResponse = new JCheckBox("Decrypt Response");
+		GridBagConstraints gbc_decryptResponse = new GridBagConstraints();
+		gbc_decryptResponse.fill = GridBagConstraints.BOTH;
+		gbc_decryptResponse.insets = new Insets(0, 0, 0, 5);
+		gbc_decryptResponse.gridx = 1;
+		gbc_decryptResponse.gridy = 1;
+		panel_3.add(decryptResponse, gbc_decryptResponse);
+		
+		chckbxShowDecryptedOnly = new JCheckBox("Show Decrypted Content Only");
+		GridBagConstraints gbc_chckbxShowDecryptedOnly = new GridBagConstraints();
+		gbc_chckbxShowDecryptedOnly.fill = GridBagConstraints.BOTH;
+		gbc_chckbxShowDecryptedOnly.insets = new Insets(0, 0, 0, 5);
+		gbc_chckbxShowDecryptedOnly.gridx = 2;
+		gbc_chckbxShowDecryptedOnly.gridy = 1;
+		panel_3.add(chckbxShowDecryptedOnly, gbc_chckbxShowDecryptedOnly);
+		
+		JPanel panel_South = new JPanel();
+		panel_South.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+		contentPane.add(panel_South, BorderLayout.SOUTH);
+		panel_South.setLayout(new BoxLayout(panel_South, BoxLayout.X_AXIS));
+		
+		JLabel lblNewLabel = new JLabel("Para Encrypter v1.1 by bit4    https://github.com/bit4woo");
+		panel_South.add(lblNewLabel);
+		lblNewLabel.setHorizontalAlignment(SwingConstants.LEFT);
+		
+		JPanel panel_East = new JPanel();
+		contentPane.add(panel_East, BorderLayout.EAST);
+		panel_East.setLayout(new BorderLayout(0, 0));
+		
+		textPlain = new JTextArea(20,20);
+		panel_East.add(textPlain, BorderLayout.WEST);
+		
+		JPanel panel_9 = new JPanel();
+		panel_East.add(panel_9, BorderLayout.CENTER);
+		GridBagLayout gbl_panel_9 = new GridBagLayout();
+		gbl_panel_9.columnWidths = new int[]{93, 0};
+		gbl_panel_9.rowHeights = new int[]{23, 0, 0};
+		gbl_panel_9.columnWeights = new double[]{0.0, Double.MIN_VALUE};
+		gbl_panel_9.rowWeights = new double[]{0.0, 0.0, Double.MIN_VALUE};
+		panel_9.setLayout(gbl_panel_9);
+		
+		JButton btnNewButton_1 = new JButton("Encrypt ->");
+		GridBagConstraints gbc_btnNewButton_1 = new GridBagConstraints();
+		gbc_btnNewButton_1.insets = new Insets(0, 0, 5, 0);
+		gbc_btnNewButton_1.anchor = GridBagConstraints.NORTHWEST;
+		gbc_btnNewButton_1.gridx = 0;
+		gbc_btnNewButton_1.gridy = 0;
+		panel_9.add(btnNewButton_1, gbc_btnNewButton_1);
+		btnNewButton_1.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				//stdout.println(tabbedPane_Center.getSelectedIndex());
+				int tabIndex = tabbedPane_Center.getSelectedIndex();
+				String txtPlain = textPlain.getText();
+				String txtCipher = "";
+				if (tabIndex == 0){
+					txtCipher = AESEncrypt(txtPlain);
+				}else if (tabIndex == 1) {
+					txtCipher = Base64Encrypt(txtPlain);
+				}else if (tabIndex == 2) {
+					txtCipher = RSAEncrypt(txtPlain);
+				}else if (tabIndex == 3 ){
+					txtCipher =DESEncrypt(txtPlain);
+				}
+				textChiper.setText(txtCipher);
+			}
+		});
+		
+		JButton btnNewButton_2 = new JButton("<- Decrypt");
+		GridBagConstraints gbc_btnNewButton_2 = new GridBagConstraints();
+		gbc_btnNewButton_2.gridx = 0;
+		gbc_btnNewButton_2.gridy = 1;
+		panel_9.add(btnNewButton_2, gbc_btnNewButton_2);
+		btnNewButton_2.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				//stdout.println(tabbedPane_Center.getSelectedIndex());
+				int tabIndex = tabbedPane_Center.getSelectedIndex();
+				String txtPlain = "";
+				String txtCipher = textChiper.getText();
+				if (tabIndex == 0){
+					txtPlain = AESDecrypt(txtCipher);
+				}else if (tabIndex == 1) {
+					txtPlain = Base64Decrypt(txtCipher);
+				}else if (tabIndex == 2) {
+					txtPlain = RSADecrypt(txtCipher);
+				}else if (tabIndex == 3 ){
+					txtPlain = DESDecrypt(txtCipher);
+				}
+				textPlain.setText(txtPlain);
+				
+			}
+		});
+		
+		textChiper = new JTextArea(20,20);
+		panel_East.add(textChiper, BorderLayout.EAST);
+		
+		JPanel panel_West = new JPanel();
+		panel_West.setPreferredSize(new Dimension(500, 200));
+		panel_West.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+		contentPane.add(panel_West, BorderLayout.WEST);
+		panel_West.setLayout(new BorderLayout(0, 0));
+		
+		JPanel panel = new JPanel();
+		panel_West.add(panel, BorderLayout.NORTH);
+		panel.setLayout(new GridLayout(0, 1, 0, 0));
+		
+		JLabel lblDomainName = new JLabel("Domain :");
+		panel.add(lblDomainName);
+		
+		textFieldDomain = new JTextField();
+		panel.add(textFieldDomain);
+		textFieldDomain.setColumns(10);
+		
+		JLabel lblParaIncluded = new JLabel("Parameters That Need To Encrypt :");
+		panel.add(lblParaIncluded);
+		
+		table = new JTable();
+		table.getTableHeader().setResizingAllowed(true);
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+		table.setModel(new DefaultTableModel(
+			new Object[][] {
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+				{null, null},
+			},
+			new String[] {
+				"key", "value"
+			}
+		));
+		panel_West.add(table, BorderLayout.CENTER);
+		
+		JPanel panel_1 = new JPanel();
+		panel_West.add(panel_1, BorderLayout.EAST);
+		GridBagLayout gbl_panel_1 = new GridBagLayout();
+		gbl_panel_1.columnWidths = new int[]{69, 0};
+		gbl_panel_1.rowHeights = new int[]{23, 0, 0};
+		gbl_panel_1.columnWeights = new double[]{0.0, Double.MIN_VALUE};
+		gbl_panel_1.rowWeights = new double[]{0.0, 0.0, Double.MIN_VALUE};
+		panel_1.setLayout(gbl_panel_1);
+		
+		JButton btnRemove = new JButton("Remove");
+		btnRemove.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				DefaultTableModel tableModel = (DefaultTableModel) table.getModel();
+            	tableModel.removeRow(table.getSelectedRow());//如何一次删除多行？
+			}
+		});
+		GridBagConstraints gbc_btnRemove = new GridBagConstraints();
+		gbc_btnRemove.insets = new Insets(0, 0, 5, 0);
+		gbc_btnRemove.anchor = GridBagConstraints.NORTHWEST;
+		gbc_btnRemove.gridx = 0;
+		gbc_btnRemove.gridy = 0;
+		panel_1.add(btnRemove, gbc_btnRemove);
+		
+		JPanel panel_2 = new JPanel();
+		panel_West.add(panel_2, BorderLayout.SOUTH);
+		panel_2.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		
+		addhere = new JTextField();
+		panel_2.add(addhere);
+		addhere.setColumns(20);
+		
+		JButton btnNewButton = new JButton("Add");
+		panel_2.add(btnNewButton);
+		
+		tabbedPane_Center = new JTabbedPane(JTabbedPane.TOP);
+		tabbedPane_Center.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+		tabbedPane_Center.setSize(new Dimension(20, 20));
+		tabbedPane_Center.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
+		tabbedPane_Center.setMinimumSize(new Dimension(20, 20));
+		contentPane.add(tabbedPane_Center, BorderLayout.CENTER);
+		
+		JPanel panel_4 = new JPanel();
+		panel_4.setMinimumSize(new Dimension(20, 20));
+		tabbedPane_Center.addTab("AES", null, panel_4, null);
+		GridBagLayout gbl_panel_4 = new GridBagLayout();
+		gbl_panel_4.columnWidths = new int[]{96, 178, 0};
+		gbl_panel_4.rowHeights = new int[]{21, 21, 23, 21, 0};
+		gbl_panel_4.columnWeights = new double[]{0.0, 0.0, Double.MIN_VALUE};
+		gbl_panel_4.rowWeights = new double[]{0.0, 0.0, 0.0, 0.0, Double.MIN_VALUE};
+		panel_4.setLayout(gbl_panel_4);
+		
+		JLabel lblAESkey = new JLabel("AES Key String :");
+		GridBagConstraints gbc_lblAESkey = new GridBagConstraints();
+		gbc_lblAESkey.anchor = GridBagConstraints.WEST;
+		gbc_lblAESkey.insets = new Insets(0, 0, 5, 5);
+		gbc_lblAESkey.gridx = 0;
+		gbc_lblAESkey.gridy = 0;
+		panel_4.add(lblAESkey, gbc_lblAESkey);
+		
+		txtAESKey = new JTextField();
+		txtAESKey.setText("bit4@MZSEC.2016.");
+		GridBagConstraints gbc_txtAESKey = new GridBagConstraints();
+		gbc_txtAESKey.anchor = GridBagConstraints.NORTH;
+		gbc_txtAESKey.fill = GridBagConstraints.HORIZONTAL;
+		gbc_txtAESKey.insets = new Insets(0, 0, 5, 0);
+		gbc_txtAESKey.gridx = 1;
+		gbc_txtAESKey.gridy = 0;
+		panel_4.add(txtAESKey, gbc_txtAESKey);
+		txtAESKey.setColumns(40);
+		
+		JLabel label = new JLabel("AES IV String :");
+		GridBagConstraints gbc_label = new GridBagConstraints();
+		gbc_label.anchor = GridBagConstraints.WEST;
+		gbc_label.insets = new Insets(0, 0, 5, 5);
+		gbc_label.gridx = 0;
+		gbc_label.gridy = 1;
+		panel_4.add(label, gbc_label);
+		
+		txtIVString = new JTextField();
+		txtIVString.setText("0123456789ABCDEF");
+		txtIVString.setColumns(20);
+		GridBagConstraints gbc_txtIVString = new GridBagConstraints();
+		gbc_txtIVString.anchor = GridBagConstraints.NORTH;
+		gbc_txtIVString.fill = GridBagConstraints.HORIZONTAL;
+		gbc_txtIVString.insets = new Insets(0, 0, 5, 0);
+		gbc_txtIVString.gridx = 1;
+		gbc_txtIVString.gridy = 1;
+		panel_4.add(txtIVString, gbc_txtIVString);
+		
+		checkBoxBase64 = new JCheckBox("Base64 Decode/Encode");
+		checkBoxBase64.setSelected(true);
+		GridBagConstraints gbc_checkBoxBase64 = new GridBagConstraints();
+		gbc_checkBoxBase64.anchor = GridBagConstraints.NORTHWEST;
+		gbc_checkBoxBase64.insets = new Insets(0, 0, 5, 0);
+		gbc_checkBoxBase64.gridx = 1;
+		gbc_checkBoxBase64.gridy = 2;
+		panel_4.add(checkBoxBase64, gbc_checkBoxBase64);
+		
+		JLabel label_1 = new JLabel("AES Mode :");
+		GridBagConstraints gbc_label_1 = new GridBagConstraints();
+		gbc_label_1.anchor = GridBagConstraints.NORTHWEST;
+		gbc_label_1.insets = new Insets(0, 0, 0, 5);
+		gbc_label_1.gridx = 0;
+		gbc_label_1.gridy = 3;
+		panel_4.add(label_1, gbc_label_1);
+		
+		comboBoxAESMode = new JComboBox();
+		comboBoxAESMode.setModel(new DefaultComboBoxModel(new String[] {"AES/CBC/PKCS5Padding","AES/ECB/PKCS5Padding","AES/CBC/NoPadding","AES/ECB/NoPadding"}));
+		GridBagConstraints gbc_comboBoxAESMode = new GridBagConstraints();
+		gbc_comboBoxAESMode.anchor = GridBagConstraints.NORTH;
+		gbc_comboBoxAESMode.fill = GridBagConstraints.HORIZONTAL;
+		gbc_comboBoxAESMode.gridx = 1;
+		gbc_comboBoxAESMode.gridy = 3;
+		panel_4.add(comboBoxAESMode, gbc_comboBoxAESMode);
+
+		
+		JPanel panel_5 = new JPanel();
+		tabbedPane_Center.addTab("Base64", null, panel_5, null);
+		
+		JLabel lblSwitchToThis = new JLabel("Switch to this tab to use Base64 encryopt and decrypt");
+		panel_5.add(lblSwitchToThis);
+		
+		JPanel panel_6 = new JPanel();
+		tabbedPane_Center.addTab("RSA", null, panel_6, null);
+		
+		JPanel panel_7 = new JPanel();
+		tabbedPane_Center.addTab("DES", null, panel_7, null);
+	}
+    
+    
     public void addMenuTab()
     {
       SwingUtilities.invokeLater(new Runnable()
       {
         public void run()
         {
-          BurpExtender.this.buildUI();
+          BurpExtender.this.UI();
           BurpExtender.this.callbacks.addSuiteTab(BurpExtender.this);
         }
       });
@@ -558,35 +589,189 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab
 	@Override
 	public Component getUiComponent() {
 		// TODO Auto-generated method stub
-		return this.panel;
+		return this.contentPane;
 	}
 
-	public void getPara(){
-		//get values in AES config panel
-		this.AESkey = this.parameterAESkey.getText();
-		this.AESIV = this.parameterAESIV.getText();
-		this.BaseEncode = this.chckbxBaseEncode.isSelected();
-		this.AESMode = (String)this.comboAESMode.getSelectedItem();
-		this.Plaintext = this.textAreaPlaintext.getText();
-		this.Chiphertext = this.textAreaCiphertext.getText();
-	}
+//	public void getPara(){
+//		
+////		private JCheckBox chckbxProxy;
+////		private JCheckBox chckbxScanner;
+////		private JCheckBox chckbxIntruder;
+////		private JCheckBox chckbxRepeater;
+////		private JCheckBox decryptResponse;
+////		private JCheckBox chckbxShowDecryptedOnly;
+//		this.AESkey = this.txtAESKey.getText();
+//		this.AESIV = this.txtIVString.getText();
+//		this.BaseEncode = this.checkBoxBase64.isSelected();
+//		this.AESMode = (String)this.comboBoxAESMode.getSelectedItem();
+//		this.Plaintext = this.textPlain.getText();
+//		this.Chiphertext = this.textChiper.getText();
+//	}
 	
 	public int checkEnabledFor(){
 		//get values that should enable this extender for which Component.
 		int status = 0;
-		if (forIntruder.isSelected()){
+		if (chckbxIntruder.isSelected()){
 			status +=32;
 		}
-		if(forProxy.isSelected()){
+		if(chckbxProxy.isSelected()){
 			status += 4;
 		}
-		if(forRepeater.isSelected()){
+		if(chckbxRepeater.isSelected()){
 			status += 64;
 		}
-		if(forScanner.isSelected()){
+		if(chckbxScanner.isSelected()){
 			status += 16;
 		}
 		return status;
 	}
+
+
+	@Override	
+	public List<JMenuItem> createMenuItems(IContextMenuInvocation invocation)
+	{ //需要在签名注册！！callbacks.registerContextMenuFactory(this);
+	    IHttpRequestResponse[] messages = invocation.getSelectedMessages();
+	    List<JMenuItem> list = new ArrayList<JMenuItem>();
+	    if((messages != null) && (messages.length > 0))
+	    {
+	        //this.callbacks.printOutput("Messages in array: " + messages.length);
+	        
+	        //final IHttpService service = messages[0].getHttpService();
+	    	final byte[] sentRequestBytes = messages[0].getRequest();
+	    	IRequestInfo analyzeRequest = helpers.analyzeRequest(sentRequestBytes);
+	    	
+	        JMenuItem menuItem = new JMenuItem("Send to Para Encrypter");
+	        menuItem.addActionListener(new ActionListener()
+	        {
+	          public void actionPerformed(ActionEvent e)
+	          {
+	            try
+	            {
+	            	BurpExtender.this.textFieldDomain.setText(getHost(analyzeRequest));
+	            	
+	            	DefaultTableModel tableModel = (DefaultTableModel) table.getModel();
+	            	tableModel.addRow(new Object[]{"col1","col2","coln"});
+	            	
+	            	Map<String,String> paraMap = getPara(analyzeRequest);
+	            	int i = 0;
+	            	for(String key:paraMap.keySet()){
+	            		if (i == table.getRowCount()){
+	            			tableModel.addRow(new Object[]{"","",""});
+	            		}
+	            		table.setValueAt(key, i, 0);
+	            		table.setValueAt(paraMap.get(key), i, 1);
+	            		i += 1;
+	            	}
+	            }
+	            catch (Exception e1)
+	            {
+	                BurpExtender.this.callbacks.printError(e1.getMessage());
+	            }
+	          }
+	        });
+	        list.add(menuItem);
+	    }
+	    return list;
+	}
+	public String getHost(IRequestInfo analyzeRequest){
+    	List<String> headers = analyzeRequest.getHeaders();
+    	
+    	String domain = "";
+    	for(String item:headers){
+    		if (item.toLowerCase().contains("host")){
+    			domain = new String(item.substring(6));
+    		}
+    	}
+    	return domain ;
+	}
 	
+	public String getHostFromUI(){
+    	String domain = "";
+    	domain = textFieldDomain.getText();
+    	return domain ;
+	}
+	
+	public Map<String, String> getPara(IRequestInfo analyzeRequest){
+    	List<IParameter> paras = analyzeRequest.getParameters();
+    	Map<String,String> paraMap = new HashMap<String,String>();
+    	for (IParameter para:paras){
+    		paraMap.put(para.getName(), para.getValue());
+    	}
+    	return paraMap ;
+	}
+	
+	public List<String> getParaFromTable(){
+    	List<String> whiteParalist = new ArrayList<String>();
+    	for (int i=0; i<table.getRowCount();i++){
+    		whiteParalist.add(table.getValueAt(i, 0).toString());
+    	}
+    	return whiteParalist;
+	}
+	
+	
+	public String AESEncrypt(String plainText) {
+		String AESKey = txtAESKey.getText();
+		String AESIV = txtIVString.getText();
+		boolean baseEncode = checkBoxBase64.isSelected();
+		String AESMode = comboBoxAESMode.getSelectedItem().toString();
+		String resultString;
+		try {
+			resultString = burp.CAES.encrypt(AESKey, AESIV, baseEncode, AESMode, plainText);
+			return resultString;
+		} catch (Exception e) {
+			//e.printStackTrace();
+			return e.toString();
+		}
+		
+		
+	}
+	public String AESDecrypt(String cipherText) {
+		String AESKey = txtAESKey.getText();
+		String AESIV = txtIVString.getText();
+		boolean baseEncode = checkBoxBase64.isSelected();
+		String AESMode = comboBoxAESMode.getSelectedItem().toString();
+		String resultString;
+		try {
+			resultString = burp.CAES.decrypt(AESKey, AESIV, baseEncode, AESMode, cipherText);
+			return resultString;
+		} catch (Exception e) {
+			return e.toString();
+		}
+		
+		
+	}
+	public String Base64Encrypt(String plainText) {
+		String resultString =(new BASE64Encoder()).encodeBuffer(plainText.getBytes());
+		return resultString;
+	}
+	public String Base64Decrypt(String cipherText) {
+		String resultString;
+		try {
+			resultString = new String((new BASE64Decoder()).decodeBuffer(cipherText));
+			return resultString;
+		} catch (IOException e) {
+			return e.toString();
+		}
+	}
+	public String RSAEncrypt(String plainText) {
+		String resultString = "still not available";
+		return resultString;
+		
+	}
+	public String RSADecrypt(String cipherText) {
+		String resultString = "still not available";
+		return resultString;
+		
+	}
+	public String DESEncrypt(String plainText) {
+		String resultString = "still not available";
+		return resultString;
+		
+	}
+	public String DESDecrypt(String cipherText) {
+		String resultString = "still not available";
+		return resultString;
+		
+	}
+
 }
