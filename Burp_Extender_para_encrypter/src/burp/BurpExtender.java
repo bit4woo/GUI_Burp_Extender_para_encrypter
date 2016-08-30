@@ -327,6 +327,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		panel_East.setLayout(new BorderLayout(0, 0));
 		
 		textPlain = new JTextArea(20,20);
+		textPlain.setLineWrap(true);
 		panel_East.add(textPlain, BorderLayout.WEST);
 		
 		JPanel panel_9 = new JPanel();
@@ -395,6 +396,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		});
 		
 		textChiper = new JTextArea(20,20);
+		textChiper.setLineWrap(true);
 		panel_East.add(textChiper, BorderLayout.EAST);
 		
 		JPanel panel_West = new JPanel();
