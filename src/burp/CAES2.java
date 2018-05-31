@@ -2,6 +2,8 @@
 //question: base64在AES中是加密后的最后一个步骤，解密前的第一个步骤吗？
 package burp;
 
+// when the Key and IV are base64 encoded values.
+
 import java.security.Key;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -10,7 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 
-public class CAES {
+public class CAES2 {
 	public static String encrypt(String AESkey, String AESIV, Boolean baseEncode, String AESMode, String plainText)
 		    throws Exception
 		  {
@@ -21,10 +23,10 @@ public class CAES {
 			System.out.println(plainText);
 			
 			
-			//byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
-		    byte[] keyValue = AESkey.getBytes();
-		    //byte[] iv = (new BASE64Decoder()).decodeBuffer(AESIV);
-		    byte[] iv = AESIV.getBytes();
+			byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
+		    //byte[] keyValue = AESkey.getBytes();
+		    byte[] iv = (new BASE64Decoder()).decodeBuffer(AESIV);
+		    //byte[] iv = AESIV.getBytes();
 		    
 		    
 		    Key skeySpec = new SecretKeySpec(keyValue, "AES");
@@ -52,10 +54,10 @@ public class CAES {
 		  public static String decrypt(String AESkey, String AESIV, Boolean baseEncode, String AESMode, String cipherText)
 		    throws Exception
 		  {
-			//byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
-		    byte[] keyValue = AESkey.getBytes();
-		    byte[] iv = AESIV.getBytes();
-		    //byte[] iv = (new BASE64Decoder()).decodeBuffer(AESIV);
+			byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
+		    //byte[] keyValue = AESkey.getBytes();
+		    //byte[] iv = AESIV.getBytes();
+		    byte[] iv = (new BASE64Decoder()).decodeBuffer(AESIV);
 		    
 		    
 		    Key skeySpec = new SecretKeySpec(keyValue, "AES");
@@ -88,8 +90,8 @@ public class CAES {
 			String Plaintext = "<11pscriptalert(1)11";
 			String ciphertext = "kIYpLr53uZfEgkxX8rbovQ==";
 			
-			//AESkey = "QHRvbnlAMjAxNVpFQUxFUg==";
-			//AESIV = "MDEyMzQ1Njc4OUFCQ0RFRg==";
+			AESkey = "QHRvbnlAMjAxNVpFQUxFUg==";
+			AESIV = "MDEyMzQ1Njc4OUFCQ0RFRg==";
 			
 			try {
 				System.out.println(encrypt(AESkey,AESIV,BaseEncode,AESMode,Plaintext));

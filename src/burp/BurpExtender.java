@@ -3,7 +3,6 @@ package burp;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.awt.BorderLayout;
@@ -14,8 +13,6 @@ import java.awt.FlowLayout;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
-import java.security.DomainCombiner;
-
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -41,7 +38,6 @@ import java.awt.GridBagConstraints;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import burp.CAESOperator_AES_128; //AES加解密算法的实现类
 import burp.CUnicode; //unicode解码的实现类
 import burp.IParameter;
 import sun.misc.BASE64Decoder;
@@ -716,7 +712,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		String AESMode = comboBoxAESMode.getSelectedItem().toString();
 		String resultString;
 		try {
-			resultString = burp.CAES.encrypt(AESKey, AESIV, baseEncode, AESMode, plainText);
+			resultString = burp.CAES2.encrypt(AESKey, AESIV, baseEncode, AESMode, plainText);
 			return resultString;
 		} catch (Exception e) {
 			//e.printStackTrace();
@@ -732,7 +728,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		String AESMode = comboBoxAESMode.getSelectedItem().toString();
 		String resultString;
 		try {
-			resultString = burp.CAES.decrypt(AESKey, AESIV, baseEncode, AESMode, cipherText);
+			resultString = burp.CAES2.decrypt(AESKey, AESIV, baseEncode, AESMode, cipherText);
 			return resultString;
 		} catch (Exception e) {
 			return e.toString();
@@ -740,6 +736,8 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		
 		
 	}
+	
+	
 	public String Base64Encrypt(String plainText) {
 		String resultString =(new BASE64Encoder()).encodeBuffer(plainText.getBytes());
 		return resultString;
@@ -753,6 +751,8 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 			return e.toString();
 		}
 	}
+	
+	
 	public String RSAEncrypt(String plainText) {
 		String resultString = "still not available";
 		return resultString;
