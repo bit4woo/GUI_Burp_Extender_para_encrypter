@@ -22,7 +22,8 @@ public class CAES {
 			byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
 		    //byte[] keyValue = AESkey.getBytes();
 		    Key skeySpec = new SecretKeySpec(keyValue, "AES");
-		    byte[] iv = AESIV.getBytes();
+		    byte[] iv = (new BASE64Decoder()).decodeBuffer(AESIV);
+		    //byte[] iv = AESIV.getBytes();
 		    IvParameterSpec ivSpec = new IvParameterSpec(iv);
 		    
 		    String cmode = AESMode;
