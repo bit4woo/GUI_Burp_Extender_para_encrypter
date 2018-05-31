@@ -19,7 +19,8 @@ public class CAES {
 			System.out.println(baseEncode);
 			System.out.println(AESMode);//AES/CBC/NoPadding,AES/CBC/PKCS5Padding, AES/ECB/NoPadding, AES/ECB/PKCS5Padding
 			System.out.println(plainText);
-		    byte[] keyValue = AESkey.getBytes();
+			byte[] keyValue = (new BASE64Decoder()).decodeBuffer(AESkey);//AESkey is a base64 encoded string
+		    //byte[] keyValue = AESkey.getBytes();
 		    Key skeySpec = new SecretKeySpec(keyValue, "AES");
 		    byte[] iv = AESIV.getBytes();
 		    IvParameterSpec ivSpec = new IvParameterSpec(iv);

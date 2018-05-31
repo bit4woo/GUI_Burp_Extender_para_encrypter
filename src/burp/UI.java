@@ -35,7 +35,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.Dimension;
 import javax.swing.JTextArea;
-import net.miginfocom.swing.MigLayout;
+
 import java.awt.ComponentOrientation;
 import java.awt.Cursor;
 

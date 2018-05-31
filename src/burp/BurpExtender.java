@@ -34,7 +34,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.table.DefaultTableModel;
 
-import com.alibaba.fastjson.util.Base64;
 
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -45,7 +44,6 @@ import java.awt.event.ActionListener;
 import burp.CAESOperator_AES_128; //AES加解密算法的实现类
 import burp.CUnicode; //unicode解码的实现类
 import burp.IParameter;
-import net.miginfocom.swing.MigLayout;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 
