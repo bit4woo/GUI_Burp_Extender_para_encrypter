@@ -1,10 +1,10 @@
-package burp;
+package custom;
 
 import javax.swing.*;        
 public class Ctest {
     /**
-     * ´´½¨²¢ÏÔÊ¾GUI¡£ ³öÓÚÏß³Ì°²È«µÄ¿¼ÂÇ£¬
-     * Õâ¸ö·½·¨ÔÚÊÂ¼şµ÷ÓÃÏß³ÌÖĞµ÷ÓÃ¡£
+     * åˆ›å»ºå¹¶æ˜¾ç¤ºGUIã€‚ å‡ºäºçº¿ç¨‹å®‰å…¨çš„è€ƒè™‘ï¼Œ
+     * è¿™ä¸ªæ–¹æ³•åœ¨äº‹ä»¶è°ƒç”¨çº¿ç¨‹ä¸­è°ƒç”¨ã€‚
      */
     private static void createAndShowGUI() {
         //Make sure we have nice window decorations.

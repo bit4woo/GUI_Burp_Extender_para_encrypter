@@ -1,14 +1,14 @@
-package burp;
+package custom;
 
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 /**
- *    BASE64加密解密
+ *    BASE64鍔犲瘑瑙ｅ瘑
  *  @author YUANWEi
  */
 public class CBase64 {
     /** 
-     * BASE64解密 
+     * BASE64瑙ｅ瘑 
      *  
      * @param key 
      * @return 
@@ -19,7 +19,7 @@ public class CBase64 {
     }  
        
     /** 
-     * BASE64加密 
+     * BASE64鍔犲瘑 
      *  
      * @param key 
      * @return 

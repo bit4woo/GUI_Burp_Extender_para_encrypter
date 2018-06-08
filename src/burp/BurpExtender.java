@@ -38,8 +38,9 @@ import java.awt.GridBagConstraints;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import burp.CUnicode; //unicode½âÂëµÄÊµÏÖÀà
+
 import burp.IParameter;
+import custom.CUnicode;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 
@@ -48,7 +49,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 {
     private IBurpExtenderCallbacks callbacks;
     private IExtensionHelpers helpers;
-    private PrintWriter stdout;//ÏÖÔÚÕâÀï¶¨Òå±äÁ¿£¬ÔÙÔÚregisterExtenderCallbacksº¯ÊıÖĞÊµÀı»¯£¬Èç¹û¶¼ÔÚº¯ÊıÖĞ¾ÍÖ»ÊÇ¾Ö²¿±äÁ¿£¬²»ÄÜÔÚÕâÊµÀı»¯£¬ÒòÎªÒªÓÃµ½ÆäËû²ÎÊı¡£
+    private PrintWriter stdout;//ç°åœ¨è¿™é‡Œå®šä¹‰å˜é‡ï¼Œå†åœ¨registerExtenderCallbackså‡½æ•°ä¸­å®ä¾‹åŒ–ï¼Œå¦‚æœéƒ½åœ¨å‡½æ•°ä¸­å°±åªæ˜¯å±€éƒ¨å˜é‡ï¼Œä¸èƒ½åœ¨è¿™å®ä¾‹åŒ–ï¼Œå› ä¸ºè¦ç”¨åˆ°å…¶ä»–å‚æ•°ã€‚
 
 	private JPanel contentPane;
 	private JTextField textFieldDomain;
@@ -82,13 +83,13 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
     public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks)
     {
     	stdout = new PrintWriter(callbacks.getStdout(), true);
-    	//PrintWriter stdout = new PrintWriter(callbacks.getStdout(), true); ÕâÖÖĞ´·¨ÊÇ¶¨Òå±äÁ¿ºÍÊµÀı»¯£¬ÕâÀïµÄ±äÁ¿¾ÍÊÇĞÂµÄ±äÁ¿¶ø²»ÊÇÖ®Ç°classÖĞµÄÈ«¾Ö±äÁ¿ÁË¡£
+    	//PrintWriter stdout = new PrintWriter(callbacks.getStdout(), true); è¿™ç§å†™æ³•æ˜¯å®šä¹‰å˜é‡å’Œå®ä¾‹åŒ–ï¼Œè¿™é‡Œçš„å˜é‡å°±æ˜¯æ–°çš„å˜é‡è€Œä¸æ˜¯ä¹‹å‰classä¸­çš„å…¨å±€å˜é‡äº†ã€‚
     	stdout.println("Para Encrypter v1.1 by bit4");
-    	//System.out.println("test"); ²»»áÊä³öµ½burpµÄ
+    	//System.out.println("test"); ä¸ä¼šè¾“å‡ºåˆ°burpçš„
         this.callbacks = callbacks;
         helpers = callbacks.getHelpers();
-        callbacks.setExtensionName("Para Encrypter v1.1 by bit4"); //²å¼şÃû³Æ
-        callbacks.registerHttpListener(this); //Èç¹ûÃ»ÓĞ×¢²á£¬ÏÂÃæµÄprocessHttpMessage·½·¨ÊÇ²»»áÉúĞ§µÄ¡£´¦ÀíÇëÇóºÍÏìÓ¦°üµÄ²å¼ş£¬Õâ¸öÓ¦¸ÃÊÇ±ØÒªµÄ
+        callbacks.setExtensionName("Para Encrypter v1.1 by bit4"); //æ’ä»¶åç§°
+        callbacks.registerHttpListener(this); //å¦‚æœæ²¡æœ‰æ³¨å†Œï¼Œä¸‹é¢çš„processHttpMessageæ–¹æ³•æ˜¯ä¸ä¼šç”Ÿæ•ˆçš„ã€‚å¤„ç†è¯·æ±‚å’Œå“åº”åŒ…çš„æ’ä»¶ï¼Œè¿™ä¸ªåº”è¯¥æ˜¯å¿…è¦çš„
         callbacks.registerContextMenuFactory(this);
         addMenuTab();
     }
@@ -96,17 +97,17 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
     @Override
     public void processHttpMessage(int toolFlag,boolean messageIsRequest,IHttpRequestResponse messageInfo)
     {
-		List<String> paraWhiteList = new ArrayList<String>(); //²ÎÊı°×Ãûµ¥£¬°×Ãûµ¥ÖĞµÄ²ÎÊıÖµ²Å½øĞĞ¼ÓÃÜ¼ÆËã
+		List<String> paraWhiteList = new ArrayList<String>(); //å‚æ•°ç™½åå•ï¼Œç™½åå•ä¸­çš„å‚æ•°å€¼æ‰è¿›è¡ŒåŠ å¯†è®¡ç®—
 		paraWhiteList = getParaFromTable();
 		
 		
-    	if (toolFlag == (toolFlag&checkEnabledFor())){ //²»Í¬µÄtoolflag´ú±íÁË²»Í¬µÄburp×é¼ş https://portswigger.net/burp/extender/api/constant-values.html#burp.IBurpExtenderCallbacks
-    		if (messageIsRequest){ //¶ÔÇëÇó°ü½øĞĞ´¦Àí
+    	if (toolFlag == (toolFlag&checkEnabledFor())){ //ä¸åŒçš„toolflagä»£è¡¨äº†ä¸åŒçš„burpç»„ä»¶ https://portswigger.net/burp/extender/api/constant-values.html#burp.IBurpExtenderCallbacks
+    		if (messageIsRequest){ //å¯¹è¯·æ±‚åŒ…è¿›è¡Œå¤„ç†
     			
-    			//»ñÈ¡¸÷ÖÖ²ÎÊıºÍÏûÏ¢ÌåµÄ·½·¨ÂŞÁĞÈçÏÂ£¬ÎŞ·ÇÈıÖÖ£¬body£¬header£¬paramater
-    			IRequestInfo analyzeRequest = helpers.analyzeRequest(messageInfo); //¶ÔÏûÏ¢Ìå½øĞĞ½âÎö 
+    			//è·å–å„ç§å‚æ•°å’Œæ¶ˆæ¯ä½“çš„æ–¹æ³•ç½—åˆ—å¦‚ä¸‹ï¼Œæ— éä¸‰ç§ï¼Œbodyï¼Œheaderï¼Œparamater
+    			IRequestInfo analyzeRequest = helpers.analyzeRequest(messageInfo); //å¯¹æ¶ˆæ¯ä½“è¿›è¡Œè§£æ 
     			//the method of get header
-    			List<String> headers = analyzeRequest.getHeaders(); //»ñÈ¡httpÇëÇóÍ·µÄĞÅÏ¢£¬·µ»Ø¿ÉÒÔ¿´×÷ÊÇÒ»¸öpythonÖĞµÄÁĞ±í£¬javaÖĞÊÇ½Ğ·ºĞÍÊ²Ã´µÄ£¬»¹Ã»ÅªÇå³ş
+    			List<String> headers = analyzeRequest.getHeaders(); //è·å–httpè¯·æ±‚å¤´çš„ä¿¡æ¯ï¼Œè¿”å›å¯ä»¥çœ‹ä½œæ˜¯ä¸€ä¸ªpythonä¸­çš„åˆ—è¡¨ï¼Œjavaä¸­æ˜¯å«æ³›å‹ä»€ä¹ˆçš„ï¼Œè¿˜æ²¡å¼„æ¸…æ¥š
     			//the method of get body
     			int bodyOffset = analyzeRequest.getBodyOffset();
     			byte[] byte_Request = messageInfo.getRequest();
@@ -114,27 +115,27 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
                 String body = request.substring(bodyOffset);
                 byte[] byte_body = body.getBytes();  //String to byte[]
     			//the method of get parameter
-                List<IParameter> paraList = analyzeRequest.getParameters();//µ±bodyÊÇjson¸ñÊ½µÄÊ±ºò£¬Õâ¸ö·½·¨Ò²¿ÉÒÔÕı³£»ñÈ¡µ½¼üÖµ¶Ô£¬Å£êş¡£µ«ÊÇPARAM_JSONµÈ¸ñÊ½²»ÄÜÍ¨¹ıupdateParameter·½·¨À´¸üĞÂ¡£
-                //Èç¹ûÔÚurlÖĞµÄ²ÎÊıµÄÖµÊÇ xxx=json¸ñÊ½µÄ×Ö·û´® ÕâÖÖĞÎÊ½µÄÊ±ºò£¬getParametersÓ¦¸ÃÊÇÎŞ·¨»ñÈ¡µ½×îµ×²ãµÄ¼üÖµ¶ÔµÄ¡£
-                //»ñÈ¡¸÷ÖÖ²ÎÊıºÍÏûÏ¢Ìå²¿·ÖµÄ¼¯ºÏ 
+                List<IParameter> paraList = analyzeRequest.getParameters();//å½“bodyæ˜¯jsonæ ¼å¼çš„æ—¶å€™ï¼Œè¿™ä¸ªæ–¹æ³•ä¹Ÿå¯ä»¥æ­£å¸¸è·å–åˆ°é”®å€¼å¯¹ï¼Œç‰›æ°ã€‚ä½†æ˜¯PARAM_JSONç­‰æ ¼å¼ä¸èƒ½é€šè¿‡updateParameteræ–¹æ³•æ¥æ›´æ–°ã€‚
+                //å¦‚æœåœ¨urlä¸­çš„å‚æ•°çš„å€¼æ˜¯ xxx=jsonæ ¼å¼çš„å­—ç¬¦ä¸² è¿™ç§å½¢å¼çš„æ—¶å€™ï¼ŒgetParametersåº”è¯¥æ˜¯æ— æ³•è·å–åˆ°æœ€åº•å±‚çš„é”®å€¼å¯¹çš„ã€‚
+                //è·å–å„ç§å‚æ•°å’Œæ¶ˆæ¯ä½“éƒ¨åˆ†çš„é›†åˆ 
                 
-                //ÅĞ¶ÏÒ»¸öÇëÇóÊÇ·ñÊÇÎÄ¼şÉÏ´«µÄÇëÇó¡£
+                //åˆ¤æ–­ä¸€ä¸ªè¯·æ±‚æ˜¯å¦æ˜¯æ–‡ä»¶ä¸Šä¼ çš„è¯·æ±‚ã€‚
     			boolean isFileUploadRequest =false;
     			for (String header : headers){
     				//stdout.println(header);
-    				if (header.toLowerCase().indexOf("content-type")!=-1 && header.toLowerCase().indexOf("boundary")!=-1){//Í¨¹ıhttpÍ·ÖĞµÄÄÚÈİÅĞ¶ÏÕâ¸öÇëÇóÊÇ·ñÊÇÎÄ¼şÉÏ´«µÄÇëÇó
+    				if (header.toLowerCase().indexOf("content-type")!=-1 && header.toLowerCase().indexOf("boundary")!=-1){//é€šè¿‡httpå¤´ä¸­çš„å†…å®¹åˆ¤æ–­è¿™ä¸ªè¯·æ±‚æ˜¯å¦æ˜¯æ–‡ä»¶ä¸Šä¼ çš„è¯·æ±‚
     					isFileUploadRequest = true;
     				}
     			}
     			
-    			if (isFileUploadRequest == false && getHost(analyzeRequest).endsWith(getHostFromUI())){ //¶ÔÎÄ¼şÉÏ´«µÄÇëÇó£¬¶ÔÆäÖĞµÄ²ÎÊı²»×ö¼ÓÃÜ´¦Àí ;²¢½øĞĞÓòÃûµÄÅĞ¶Ï£¬Ö»¶ÔÖ¸¶¨µÄÓòÃû¼°Æä×ÓÓòÃû½øĞĞ´¦Àí
+    			if (isFileUploadRequest == false && getHost(analyzeRequest).endsWith(getHostFromUI())){ //å¯¹æ–‡ä»¶ä¸Šä¼ çš„è¯·æ±‚ï¼Œå¯¹å…¶ä¸­çš„å‚æ•°ä¸åšåŠ å¯†å¤„ç† ;å¹¶è¿›è¡ŒåŸŸåçš„åˆ¤æ–­ï¼Œåªå¯¹æŒ‡å®šçš„åŸŸååŠå…¶å­åŸŸåè¿›è¡Œå¤„ç†
 	    			byte[] new_Request = messageInfo.getRequest();
-	    			for (IParameter para : paraList){// Ñ­»·»ñÈ¡²ÎÊı£¬ÅĞ¶ÏÀàĞÍ£¬½øĞĞ¼ÓÃÜ´¦Àíºó£¬ÔÙ¹¹ÔìĞÂµÄ²ÎÊı£¬ºÏ²¢µ½ĞÂµÄÇëÇó°üÖĞ¡£
+	    			for (IParameter para : paraList){// å¾ªç¯è·å–å‚æ•°ï¼Œåˆ¤æ–­ç±»å‹ï¼Œè¿›è¡ŒåŠ å¯†å¤„ç†åï¼Œå†æ„é€ æ–°çš„å‚æ•°ï¼Œåˆå¹¶åˆ°æ–°çš„è¯·æ±‚åŒ…ä¸­ã€‚
 	    				if (paraWhiteList.contains(para.getName())){ 
-	    					//getTpe()¾ÍÊÇÀ´ÅĞ¶Ï²ÎÊıÊÇÔÚÄÇ¸öÎ»ÖÃµÄ£¬cookieÖĞµÄ²ÎÊıÊÇ²»ĞèÒª½øĞĞ¼ÓÃÜ´¦ÀíµÄ¡£»¹ÒªÅÅ³ı°×Ãûµ¥ÖĞµÄ²ÎÊı¡£
-		    				//ÕâÀïÒª×¢ÒâµÄÊÇ£¬²ÎÊıµÄÀàĞÍ¹²6ÖÖ£¬Èç¹ûbodyÖĞµÄ²ÎÊıÊÇjson»òÕßxml¸ñÊ½£¬ĞèÒªµ¥¶ÀÅĞ¶Ï¡£
-	    					String key = para.getName(); //»ñÈ¡²ÎÊıµÄÃû³Æ
-		    				String value = para.getValue(); //»ñÈ¡²ÎÊıµÄÖµ
+	    					//getTpe()å°±æ˜¯æ¥åˆ¤æ–­å‚æ•°æ˜¯åœ¨é‚£ä¸ªä½ç½®çš„ï¼Œcookieä¸­çš„å‚æ•°æ˜¯ä¸éœ€è¦è¿›è¡ŒåŠ å¯†å¤„ç†çš„ã€‚è¿˜è¦æ’é™¤ç™½åå•ä¸­çš„å‚æ•°ã€‚
+		    				//è¿™é‡Œè¦æ³¨æ„çš„æ˜¯ï¼Œå‚æ•°çš„ç±»å‹å…±6ç§ï¼Œå¦‚æœbodyä¸­çš„å‚æ•°æ˜¯jsonæˆ–è€…xmlæ ¼å¼ï¼Œéœ€è¦å•ç‹¬åˆ¤æ–­ã€‚
+	    					String key = para.getName(); //è·å–å‚æ•°çš„åç§°
+		    				String value = para.getValue(); //è·å–å‚æ•°çš„å€¼
 		    				//stdout.println(key+":"+value);
 		    				
 		    				
@@ -153,21 +154,21 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		    						encryptedValue =DESEncrypt(txtPlain);
 		    					}
 
-		    					encryptedValue = URLEncoder.encode(encryptedValue); //»¹Òª½øĞĞURL±àÂë£¬·ñÔò»á³öÏÖ= µÈÌØÊâ×Ö·ûµ¼ÖÂ²ÎÊıÅĞ¶ÏÒì³£
-			    				stdout.println(key+":"+value+":"+encryptedValue); //Êä³öµ½extenderµÄUI´°¿Ú£¬¿ÉÒÔÈÃÊ¹ÓÃÕßÓĞÒ»Ğ©ÅĞ¶Ï
-			    				//¸üĞÂ°üµÄ·½·¨¼¯ºÏ
-			    				//¸üĞÂ²ÎÊı
-			    				IParameter newPara = helpers.buildParameter(key, encryptedValue, para.getType()); //¹¹ÔìĞÂµÄ²ÎÊı,Èç¹û²ÎÊıÊÇPARAM_JSONÀàĞÍ£¬Õâ¸ö·½·¨ÊÇ²»ÊÊÓÃµÄ
-			    				//IParameter newPara = helpers.buildParameter(key, encryptedValue, PARAM_BODY); //ÒªÊ¹ÓÃÕâ¸öPARAM_BODY ÊÇ²»ÊÇĞèÒªÏÈÊµÀı»¯IParameterÀà¡£
-			    				new_Request = helpers.updateParameter(new_Request, newPara); //¹¹ÔìĞÂµÄÇëÇó°ü
-			    				// new_Request = helpers.buildHttpMessage(headers, byte_body); //Èç¹ûĞŞ¸ÄÁËheader»òÕßÊıĞŞ¸ÄÁËbody£¬¶ø²»ÊÇÍ¨¹ıupdateParameter£¬Ê¹ÓÃÕâ¸ö·½·¨¡£
+		    					encryptedValue = URLEncoder.encode(encryptedValue); //è¿˜è¦è¿›è¡ŒURLç¼–ç ï¼Œå¦åˆ™ä¼šå‡ºç°= ç­‰ç‰¹æ®Šå­—ç¬¦å¯¼è‡´å‚æ•°åˆ¤æ–­å¼‚å¸¸
+			    				stdout.println(key+":"+value+":"+encryptedValue); //è¾“å‡ºåˆ°extenderçš„UIçª—å£ï¼Œå¯ä»¥è®©ä½¿ç”¨è€…æœ‰ä¸€äº›åˆ¤æ–­
+			    				//æ›´æ–°åŒ…çš„æ–¹æ³•é›†åˆ
+			    				//æ›´æ–°å‚æ•°
+			    				IParameter newPara = helpers.buildParameter(key, encryptedValue, para.getType()); //æ„é€ æ–°çš„å‚æ•°,å¦‚æœå‚æ•°æ˜¯PARAM_JSONç±»å‹ï¼Œè¿™ä¸ªæ–¹æ³•æ˜¯ä¸é€‚ç”¨çš„
+			    				//IParameter newPara = helpers.buildParameter(key, encryptedValue, PARAM_BODY); //è¦ä½¿ç”¨è¿™ä¸ªPARAM_BODY æ˜¯ä¸æ˜¯éœ€è¦å…ˆå®ä¾‹åŒ–IParameterç±»ã€‚
+			    				new_Request = helpers.updateParameter(new_Request, newPara); //æ„é€ æ–°çš„è¯·æ±‚åŒ…
+			    				// new_Request = helpers.buildHttpMessage(headers, byte_body); //å¦‚æœä¿®æ”¹äº†headeræˆ–è€…æ•°ä¿®æ”¹äº†bodyï¼Œè€Œä¸æ˜¯é€šè¿‡updateParameterï¼Œä½¿ç”¨è¿™ä¸ªæ–¹æ³•ã€‚
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
 		    				
 	    				}
 	    			}
-	    			messageInfo.setRequest(new_Request);//ÉèÖÃ×îÖÕĞÂµÄÇëÇó°ü
+	    			messageInfo.setRequest(new_Request);//è®¾ç½®æœ€ç»ˆæ–°çš„è¯·æ±‚åŒ…
     			}
     			/* to verify the updated result
     			for (IParameter para : helpers.analyzeRequest(messageInfo).getParameters()){
@@ -178,8 +179,8 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
     		
     		else{
     			if(this.decryptResponse.isSelected()){
-	    			//´¦Àí·µ»Ø£¬ÏìÓ¦°ü
-	    			IResponseInfo analyzedResponse = helpers.analyzeResponse(messageInfo.getResponse()); //getResponse»ñµÃµÄÊÇ×Ö½ÚĞòÁĞ
+	    			//å¤„ç†è¿”å›ï¼Œå“åº”åŒ…
+	    			IResponseInfo analyzedResponse = helpers.analyzeResponse(messageInfo.getResponse()); //getResponseè·å¾—çš„æ˜¯å­—èŠ‚åºåˆ—
 	    			List<String> header = analyzedResponse.getHeaders();
 	    			//short statusCode = analyzedResponse.getStatusCode();
 	    			int bodyOffset = analyzedResponse.getBodyOffset();
@@ -207,10 +208,10 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 	                    	 newBody = UnicodeBody;
 	                    }
 	                    else {
-	                    	 newBody = body +"\r\n" +UnicodeBody; //½«ĞÂµÄ½âÃÜºóµÄbody¸½µ½¾ÉµÄbodyºóÃæ
+	                    	 newBody = body +"\r\n" +UnicodeBody; //å°†æ–°çš„è§£å¯†åçš„bodyé™„åˆ°æ—§çš„bodyåé¢
 						}
 	                    byte[] bodybyte = newBody.getBytes();
-	                    //¸üĞÂ°üµÄ·½·¨¶şbuildHttpMessage
+	                    //æ›´æ–°åŒ…çš„æ–¹æ³•äºŒbuildHttpMessage
 	                    messageInfo.setResponse(helpers.buildHttpMessage(header, bodybyte));
     				}catch(Exception e){
     					stdout.println(e);
@@ -448,7 +449,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		btnRemove.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				DefaultTableModel tableModel = (DefaultTableModel) table.getModel();
-            	tableModel.removeRow(table.getSelectedRow());//ÈçºÎÒ»´ÎÉ¾³ı¶àĞĞ£¿
+            	tableModel.removeRow(table.getSelectedRow());//å¦‚ä½•ä¸€æ¬¡åˆ é™¤å¤šè¡Œï¼Ÿ
 			}
 		});
 		GridBagConstraints gbc_btnRemove = new GridBagConstraints();
@@ -625,7 +626,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 
 	@Override	
 	public List<JMenuItem> createMenuItems(IContextMenuInvocation invocation)
-	{ //ĞèÒªÔÚÇ©Ãû×¢²á£¡£¡callbacks.registerContextMenuFactory(this);
+	{ //éœ€è¦åœ¨ç­¾åæ³¨å†Œï¼ï¼callbacks.registerContextMenuFactory(this);
 	    IHttpRequestResponse[] messages = invocation.getSelectedMessages();
 	    List<JMenuItem> list = new ArrayList<JMenuItem>();
 	    if((messages != null) && (messages.length > 0))
@@ -712,7 +713,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		String AESMode = comboBoxAESMode.getSelectedItem().toString();
 		String resultString;
 		try {
-			resultString = burp.CAES2.encrypt(AESKey, AESIV, baseEncode, AESMode, plainText);
+			resultString = custom.CAES2.encrypt(AESKey, AESIV, baseEncode, AESMode, plainText);
 			return resultString;
 		} catch (Exception e) {
 			//e.printStackTrace();
@@ -728,7 +729,7 @@ public class BurpExtender implements IBurpExtender, IHttpListener,ITab,IContextM
 		String AESMode = comboBoxAESMode.getSelectedItem().toString();
 		String resultString;
 		try {
-			resultString = burp.CAES2.decrypt(AESKey, AESIV, baseEncode, AESMode, cipherText);
+			resultString = custom.CAES2.decrypt(AESKey, AESIV, baseEncode, AESMode, cipherText);
 			return resultString;
 		} catch (Exception e) {
 			return e.toString();

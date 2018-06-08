@@ -1,4 +1,4 @@
-package burp;
+package custom;
 
 import java.util.Scanner;
 
@@ -6,7 +6,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import burp.CBase641;
+import custom.CBase641;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 

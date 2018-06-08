@@ -1,6 +1,6 @@
 //this method include 128_192_256
-//question: base64ÔÚAESÖĞÊÇ¼ÓÃÜºóµÄ×îºóÒ»¸ö²½Öè£¬½âÃÜÇ°µÄµÚÒ»¸ö²½ÖèÂğ£¿
-package burp;
+//question: base64åœ¨AESä¸­æ˜¯åŠ å¯†åçš„æœ€åä¸€ä¸ªæ­¥éª¤ï¼Œè§£å¯†å‰çš„ç¬¬ä¸€ä¸ªæ­¥éª¤å—ï¼Ÿ
+package custom;
 
 // when the Key and IV are base64 encoded values.
 

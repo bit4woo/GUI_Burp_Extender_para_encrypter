@@ -1,4 +1,4 @@
-package burp;
+package custom;
 
 public class CHexString2String {
 	public static String hexStringToString(String hexstring)
